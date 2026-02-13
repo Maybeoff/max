@@ -15,8 +15,10 @@ import {
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
+import SecurityIcon from '@mui/icons-material/Security';
 import { useAuth } from '../../context/AuthContext';
 import { useSocket } from '../../context/SocketContext';
+import PrivacySettings from './PrivacySettings';
 
 function ProfileDialog({ open, onClose }) {
   const { user, setUser } = useAuth();
@@ -29,6 +31,7 @@ function ProfileDialog({ open, onClose }) {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+  const [privacyOpen, setPrivacyOpen] = useState(false);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -234,18 +237,32 @@ function ProfileDialog({ open, onClose }) {
         />
       </DialogContent>
       
-      <DialogActions sx={{ p: 2 }}>
-        <Button onClick={onClose} disabled={loading}>
-          Отмена
-        </Button>
+      <DialogActions sx={{ p: 2, justifyContent: 'space-between' }}>
         <Button 
-          variant="contained" 
-          onClick={handleSave}
-          disabled={loading || !username || uploadingAvatar}
+          startIcon={<SecurityIcon />}
+          onClick={() => setPrivacyOpen(true)}
+          disabled={loading}
         >
-          {loading ? 'Сохранение...' : 'Сохранить'}
+          Приватность
         </Button>
+        <Box>
+          <Button onClick={onClose} disabled={loading} sx={{ mr: 1 }}>
+            Отмена
+          </Button>
+          <Button 
+            variant="contained" 
+            onClick={handleSave}
+            disabled={loading || !username || uploadingAvatar}
+          >
+            {loading ? 'Сохранение...' : 'Сохранить'}
+          </Button>
+        </Box>
       </DialogActions>
+
+      <PrivacySettings 
+        open={privacyOpen} 
+        onClose={() => setPrivacyOpen(false)} 
+      />
     </Dialog>
   );
 }

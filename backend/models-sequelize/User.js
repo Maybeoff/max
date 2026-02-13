@@ -43,33 +43,6 @@ const userSchema = new mongoose.Schema({
   lastSeen: {
     type: Date,
     default: Date.now
-  },
-  privacySettings: {
-    showEmail: {
-      type: String,
-      enum: ['everyone', 'contacts', 'nobody'],
-      default: 'contacts'
-    },
-    showPhone: {
-      type: String,
-      enum: ['everyone', 'contacts', 'nobody'],
-      default: 'contacts'
-    },
-    showLastSeen: {
-      type: String,
-      enum: ['everyone', 'contacts', 'nobody'],
-      default: 'everyone'
-    },
-    showAvatar: {
-      type: String,
-      enum: ['everyone', 'contacts', 'nobody'],
-      default: 'everyone'
-    },
-    showBio: {
-      type: String,
-      enum: ['everyone', 'contacts', 'nobody'],
-      default: 'everyone'
-    }
   }
 }, {
   timestamps: true

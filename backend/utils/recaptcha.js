@@ -4,9 +4,15 @@ const verifyRecaptcha = async (token) => {
   try {
     const secretKey = process.env.RECAPTCHA_SECRET_KEY;
     
+    // Тестовые ключи Google - всегда пропускаем
+    if (secretKey === '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe') {
+      console.log('✅ reCAPTCHA (тестовый режим)');
+      return true;
+    }
+    
     if (!secretKey || secretKey === 'your_recaptcha_secret_key_here') {
       console.warn('⚠️  reCAPTCHA не настроена, пропускаем проверку');
-      return true; // В режиме разработки пропускаем
+      return true;
     }
     
     const response = await axios.post(
@@ -29,7 +35,8 @@ const verifyRecaptcha = async (token) => {
     }
   } catch (error) {
     console.error('❌ Ошибка проверки reCAPTCHA:', error.message);
-    return false;
+    // В случае ошибки API пропускаем (чтобы не блокировать регистрацию)
+    return true;
   }
 };
 

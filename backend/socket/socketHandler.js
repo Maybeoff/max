@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { User, Message, Chat } = require('../models');
+const { filterUserData } = require('../utils/privacyFilter');
 
 const users = new Map();
 
@@ -153,7 +154,10 @@ module.exports = (io) => {
           _id: { $ne: socket.userId }
         }).select('-password').limit(20);
         
-        callback({ success: true, users });
+        // Фильтруем данные на основе настроек приватности
+        const filteredUsers = users.map(user => filterUserData(user, socket.userId, false));
+        
+        callback({ success: true, users: filteredUsers });
       } catch (error) {
         console.error('Ошибка поиска:', error);
         callback({ success: false, error: error.message });
@@ -174,6 +178,24 @@ module.exports = (io) => {
         callback({ success: true, user: updatedUser });
       } catch (error) {
         console.error('Ошибка обновления профиля:', error);
+        callback({ success: false, error: error.message });
+      }
+    });
+
+    // Обновить настройки приватности
+    socket.on('update-privacy', async (data, callback) => {
+      try {
+        const { privacySettings } = data;
+        
+        const updatedUser = await User.findByIdAndUpdate(
+          socket.userId,
+          { privacySettings },
+          { new: true }
+        ).select('-password');
+        
+        callback({ success: true, user: updatedUser });
+      } catch (error) {
+        console.error('Ошибка обновления приватности:', error);
         callback({ success: false, error: error.message });
       }
     });
