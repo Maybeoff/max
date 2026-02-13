@@ -1,11 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Box, TextField, Button, Typography, Container, Alert, CircularProgress } from '@mui/material';
-import ReCAPTCHA from 'react-google-recaptcha';
 import axios from 'axios';
-
-// Получите ключ на https://www.google.com/recaptcha/admin
-const RECAPTCHA_SITE_KEY = process.env.REACT_APP_RECAPTCHA_SITE_KEY || '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI';
 
 function Register() {
   const [step, setStep] = useState(1); // 1 = данные, 2 = код
@@ -16,7 +12,6 @@ function Register() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(0);
-  const recaptchaRef = useRef(null);
   const navigate = useNavigate();
 
   const handleRegister = async (e) => {
@@ -25,20 +20,10 @@ function Register() {
     setLoading(true);
     
     try {
-      // Получаем токен reCAPTCHA
-      const recaptchaToken = recaptchaRef.current?.getValue();
-      
-      if (!recaptchaToken) {
-        setError('Пожалуйста, подтвердите что вы не робот');
-        setLoading(false);
-        return;
-      }
-      
       const { data } = await axios.post('/api/auth/register', {
         username,
         email,
-        password,
-        recaptchaToken
+        password
       });
       
       if (data.requiresVerification) {
@@ -58,7 +43,6 @@ function Register() {
       }
     } catch (err) {
       setError(err.response?.data?.error || 'Ошибка регистрации');
-      recaptchaRef.current?.reset();
     } finally {
       setLoading(false);
     }
@@ -169,14 +153,6 @@ function Register() {
               onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
             />
-            
-            <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
-              <ReCAPTCHA
-                ref={recaptchaRef}
-                sitekey={RECAPTCHA_SITE_KEY}
-                theme="light"
-              />
-            </Box>
             
             <Button
               type="submit"

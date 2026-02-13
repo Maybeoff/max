@@ -3,7 +3,6 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const { User, VerificationCode } = require('../models');
 const { generateCode, sendVerificationCode, sendWelcomeEmail } = require('../utils/emailService');
-const { verifyRecaptcha } = require('../utils/recaptcha');
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -14,16 +13,7 @@ const generateToken = (id) => {
 // Регистрация - шаг 1: отправка кода
 router.post('/register', async (req, res) => {
   try {
-    const { username, email, password, recaptchaToken } = req.body;
-    
-    // Проверяем reCAPTCHA
-    if (recaptchaToken) {
-      const isValidCaptcha = await verifyRecaptcha(recaptchaToken);
-      if (!isValidCaptcha) {
-        console.log('⚠️ reCAPTCHA не пройдена, но пропускаем для отладки');
-        // return res.status(400).json({ error: 'Проверка reCAPTCHA не пройдена' });
-      }
-    }
+    const { username, email, password } = req.body;
     
     if (!username || username.length < 1) {
       return res.status(400).json({ error: 'Имя пользователя обязательно' });
