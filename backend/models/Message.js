@@ -1,48 +1,61 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const mongoose = require('mongoose');
 
-const Message = sequelize.define('Message', {
-  id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true
-  },
+const messageSchema = new mongoose.Schema({
   chatId: {
-    type: DataTypes.INTEGER,
-    allowNull: false
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Chat',
+    required: true
   },
   senderId: {
-    type: DataTypes.INTEGER,
-    allowNull: false
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
   },
   content: {
-    type: DataTypes.TEXT,
-    allowNull: true
+    type: String,
+    required: true
   },
   type: {
-    type: DataTypes.ENUM('text', 'image', 'video', 'audio', 'document', 'voice'),
-    defaultValue: 'text'
+    type: String,
+    enum: ['text', 'image', 'video', 'audio', 'document'],
+    default: 'text'
   },
   fileUrl: {
-    type: DataTypes.STRING,
-    allowNull: true
+    type: String,
+    default: ''
   },
   fileName: {
-    type: DataTypes.STRING,
-    allowNull: true
+    type: String,
+    default: ''
   },
   fileSize: {
-    type: DataTypes.INTEGER,
-    allowNull: true
-  },
-  isEdited: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: false
+    type: Number,
+    default: 0
   },
   replyToId: {
-    type: DataTypes.INTEGER,
-    allowNull: true
-  }
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Message'
+  },
+  isEdited: {
+    type: Boolean,
+    default: false
+  },
+  isDeleted: {
+    type: Boolean,
+    default: false
+  },
+  readBy: [{
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    readAt: {
+      type: Date,
+      default: Date.now
+    }
+  }]
+}, {
+  timestamps: true
 });
 
-module.exports = Message;
+module.exports = mongoose.model('Message', messageSchema);

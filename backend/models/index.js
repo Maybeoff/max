@@ -1,45 +1,24 @@
-const sequelize = require('../config/database');
-const User = require('./User');
-const Chat = require('./Chat');
-const Message = require('./Message');
-const ChatParticipant = require('./ChatParticipant');
-const MessageRead = require('./MessageRead');
-const VerificationCode = require('./VerificationCode');
+const mongoose = require('mongoose');
 
-// Relationships
-Chat.belongsToMany(User, { through: ChatParticipant, as: 'participants', foreignKey: 'chatId' });
-User.belongsToMany(Chat, { through: ChatParticipant, foreignKey: 'userId' });
-
-Chat.hasMany(Message, { foreignKey: 'chatId', as: 'messages' });
-Message.belongsTo(Chat, { foreignKey: 'chatId' });
-
-User.hasMany(Message, { foreignKey: 'senderId', as: 'sentMessages' });
-Message.belongsTo(User, { foreignKey: 'senderId', as: 'sender' });
-
-Message.hasMany(MessageRead, { foreignKey: 'messageId', as: 'reads' });
-MessageRead.belongsTo(Message, { foreignKey: 'messageId' });
-
-User.hasMany(MessageRead, { foreignKey: 'userId' });
-MessageRead.belongsTo(User, { foreignKey: 'userId' });
-
-Message.belongsTo(Message, { foreignKey: 'replyToId', as: 'replyTo' });
-
-const syncDatabase = async () => {
+const connectDB = async () => {
   try {
-    await sequelize.sync({ force: false });
-    console.log('База данных синхронизирована');
+    await mongoose.connect(process.env.MONGODB_URI);
+    console.log('✅ MongoDB подключена');
   } catch (error) {
-    console.error('Ошибка синхронизации базы данных:', error);
+    console.error('❌ Ошибка подключения к MongoDB:', error);
+    process.exit(1);
   }
 };
 
+const User = require('./User');
+const Chat = require('./Chat');
+const Message = require('./Message');
+const VerificationCode = require('./VerificationCode');
+
 module.exports = {
-  sequelize,
+  connectDB,
   User,
   Chat,
   Message,
-  ChatParticipant,
-  MessageRead,
-  VerificationCode,
-  syncDatabase
+  VerificationCode
 };

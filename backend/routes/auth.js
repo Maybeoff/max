@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
-const { User, VerificationCode } = require('../models-mongoose');
+const { User, VerificationCode } = require('../models');
 const { generateCode, sendVerificationCode, sendWelcomeEmail } = require('../utils/emailService');
 const { verifyRecaptcha } = require('../utils/recaptcha');
 

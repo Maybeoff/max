@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { User, Message, Chat } = require('../models-mongoose');
+const { User, Message, Chat } = require('../models');
 
 const users = new Map();
 

@@ -1,28 +1,28 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const mongoose = require('mongoose');
 
-const VerificationCode = sequelize.define('VerificationCode', {
-  id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true
-  },
+const verificationCodeSchema = new mongoose.Schema({
   email: {
-    type: DataTypes.STRING,
-    allowNull: false
+    type: String,
+    required: true,
+    lowercase: true
   },
   code: {
-    type: DataTypes.STRING,
-    allowNull: false
+    type: String,
+    required: true
   },
   expiresAt: {
-    type: DataTypes.DATE,
-    allowNull: false
+    type: Date,
+    required: true
   },
   isUsed: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: false
+    type: Boolean,
+    default: false
   }
+}, {
+  timestamps: true
 });
 
-module.exports = VerificationCode;
+// Автоматически удалять истекшие коды
+verificationCodeSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+module.exports = mongoose.model('VerificationCode', verificationCodeSchema);

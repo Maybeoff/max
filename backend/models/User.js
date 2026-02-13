@@ -1,76 +1,67 @@
-const { DataTypes } = require('sequelize');
+const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
-const sequelize = require('../config/database');
 
-const User = sequelize.define('User', {
-  id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true
-  },
+const userSchema = new mongoose.Schema({
   username: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    unique: true
+    type: String,
+    required: true,
+    unique: true,
+    trim: true
   },
   email: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    unique: true
+    type: String,
+    required: true,
+    unique: true,
+    lowercase: true,
+    trim: true
   },
   password: {
-    type: DataTypes.STRING,
-    allowNull: false
+    type: String,
+    required: true
   },
   avatar: {
-    type: DataTypes.STRING,
-    defaultValue: ''
+    type: String,
+    default: ''
   },
   status: {
-    type: DataTypes.ENUM('online', 'offline', 'away'),
-    defaultValue: 'offline'
+    type: String,
+    enum: ['online', 'offline', 'away'],
+    default: 'offline'
   },
   bio: {
-    type: DataTypes.STRING,
-    defaultValue: ''
+    type: String,
+    default: ''
   },
   phone: {
-    type: DataTypes.STRING,
-    defaultValue: ''
-  },
-  isBusiness: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: false
-  },
-  twoFactorEnabled: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: false
+    type: String,
+    default: ''
   },
   emailVerified: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: false
+    type: Boolean,
+    default: false
   },
   lastSeen: {
-    type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW
+    type: Date,
+    default: Date.now
   }
 }, {
-  hooks: {
-    beforeCreate: async (user) => {
-      if (user.password) {
-        user.password = await bcrypt.hash(user.password, 10);
-      }
-    },
-    beforeUpdate: async (user) => {
-      if (user.changed('password')) {
-        user.password = await bcrypt.hash(user.password, 10);
-      }
-    }
-  }
+  timestamps: true
 });
 
-User.prototype.comparePassword = async function(candidatePassword) {
+// Hash password before saving
+userSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) {
+    return next();
+  }
+  
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+  next();
+});
+
+// Compare password
+userSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
-module.exports = User;
+module.exports = mongoose.model('User', userSchema);

@@ -7,7 +7,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 const fs = require('fs');
-const { connectDB } = require('./models-mongoose');
+const { connectDB } = require('./models');
 
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
