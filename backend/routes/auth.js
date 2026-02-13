@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
-const { User, VerificationCode } = require('../models');
+const { User, VerificationCode } = require('../models-mongoose');
 const { generateCode, sendVerificationCode, sendWelcomeEmail } = require('../utils/emailService');
 const { verifyRecaptcha } = require('../utils/recaptcha');
 
@@ -37,9 +37,7 @@ router.post('/register', async (req, res) => {
     }
     
     const userExists = await User.findOne({ 
-      where: { 
-        [require('sequelize').Op.or]: [{ email }, { username }] 
-      } 
+      $or: [{ email }, { username }] 
     });
     
     if (userExists) {
@@ -64,7 +62,6 @@ router.post('/register', async (req, res) => {
       return res.status(500).json({ error: 'Ошибка отправки email' });
     }
     
-    // Временно сохраняем данные регистрации (без создания пользователя)
     res.status(200).json({
       success: true,
       message: 'Код подтверждения отправлен на email',
@@ -84,12 +81,10 @@ router.post('/verify-registration', async (req, res) => {
     
     // Проверяем код
     const verificationCode = await VerificationCode.findOne({
-      where: {
-        email,
-        code,
-        isUsed: false,
-        expiresAt: { [require('sequelize').Op.gt]: new Date() }
-      }
+      email,
+      code,
+      isUsed: false,
+      expiresAt: { $gt: new Date() }
     });
     
     if (!verificationCode) {
@@ -98,9 +93,7 @@ router.post('/verify-registration', async (req, res) => {
     
     // Проверяем что пользователь еще не создан
     const userExists = await User.findOne({ 
-      where: { 
-        [require('sequelize').Op.or]: [{ email }, { username }] 
-      } 
+      $or: [{ email }, { username }] 
     });
     
     if (userExists) {
@@ -116,17 +109,18 @@ router.post('/verify-registration', async (req, res) => {
     });
     
     // Помечаем код как использованный
-    await verificationCode.update({ isUsed: true });
+    verificationCode.isUsed = true;
+    await verificationCode.save();
     
     // Отправляем приветственное письмо
     sendWelcomeEmail(email, username);
     
     res.status(201).json({
-      id: user.id,
+      id: user._id,
       username: user.username,
       email: user.email,
       emailVerified: user.emailVerified,
-      token: generateToken(user.id)
+      token: generateToken(user._id)
     });
   } catch (error) {
     console.error('Ошибка подтверждения регистрации:', error);
@@ -148,11 +142,9 @@ router.post('/resend-code', async (req, res) => {
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
     
     // Удаляем старые неиспользованные коды
-    await VerificationCode.destroy({
-      where: {
-        email,
-        isUsed: false
-      }
+    await VerificationCode.deleteMany({
+      email,
+      isUsed: false
     });
     
     // Создаем новый код
@@ -188,7 +180,7 @@ router.post('/request-code', async (req, res) => {
       return res.status(400).json({ error: 'Некорректный email' });
     }
     
-    const user = await User.findOne({ where: { email } });
+    const user = await User.findOne({ email });
     if (!user) {
       return res.status(404).json({ error: 'Пользователь не найден' });
     }
@@ -227,19 +219,17 @@ router.post('/login-with-code', async (req, res) => {
   try {
     const { email, code } = req.body;
     
-    const user = await User.findOne({ where: { email } });
+    const user = await User.findOne({ email });
     if (!user) {
       return res.status(401).json({ error: 'Неверные учетные данные' });
     }
     
     // Проверяем код
     const verificationCode = await VerificationCode.findOne({
-      where: {
-        email,
-        code,
-        isUsed: false,
-        expiresAt: { [require('sequelize').Op.gt]: new Date() }
-      }
+      email,
+      code,
+      isUsed: false,
+      expiresAt: { $gt: new Date() }
     });
     
     if (!verificationCode) {
@@ -247,19 +237,20 @@ router.post('/login-with-code', async (req, res) => {
     }
     
     // Помечаем код как использованный
-    await verificationCode.update({ isUsed: true });
+    verificationCode.isUsed = true;
+    await verificationCode.save();
     
     // Обновляем статус
     user.status = 'online';
     await user.save();
 
     res.json({
-      id: user.id,
+      id: user._id,
       username: user.username,
       email: user.email,
       avatar: user.avatar,
       emailVerified: user.emailVerified,
-      token: generateToken(user.id)
+      token: generateToken(user._id)
     });
   } catch (error) {
     console.error('Ошибка входа с кодом:', error);
@@ -272,7 +263,7 @@ router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     
-    const user = await User.findOne({ where: { email } });
+    const user = await User.findOne({ email });
     if (!user || !(await user.comparePassword(password))) {
       return res.status(401).json({ error: 'Неверные учетные данные' });
     }
@@ -281,12 +272,12 @@ router.post('/login', async (req, res) => {
     await user.save();
 
     res.json({
-      id: user.id,
+      id: user._id,
       username: user.username,
       email: user.email,
       avatar: user.avatar,
       emailVerified: user.emailVerified,
-      token: generateToken(user.id)
+      token: generateToken(user._id)
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { User } = require('../models');
+const { User } = require('../models-mongoose');
 
 exports.protect = async (req, res, next) => {
   let token;
@@ -14,9 +14,7 @@ exports.protect = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = await User.findByPk(decoded.id, {
-      attributes: { exclude: ['password'] }
-    });
+    req.user = await User.findById(decoded.id).select('-password');
     next();
   } catch (error) {
     return res.status(401).json({ error: 'Токен недействителен' });

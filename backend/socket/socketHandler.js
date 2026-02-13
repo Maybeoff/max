@@ -1,6 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { User, Message, Chat, ChatParticipant } = require('../models');
-const { Op } = require('sequelize');
+const { User, Message, Chat } = require('../models-mongoose');
 
 const users = new Map();
 
@@ -9,13 +8,13 @@ module.exports = (io) => {
     try {
       const token = socket.handshake.auth.token;
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const user = await User.findByPk(decoded.id);
+      const user = await User.findById(decoded.id);
       
       if (!user) {
         return next(new Error('Authentication error'));
       }
       
-      socket.userId = user.id;
+      socket.userId = user._id.toString();
       socket.user = user;
       next();
     } catch (error) {
@@ -28,38 +27,27 @@ module.exports = (io) => {
     users.set(socket.userId, socket.id);
     
     // Обновляем статус на online
-    User.update({ status: 'online' }, { where: { id: socket.userId } });
+    User.findByIdAndUpdate(socket.userId, { status: 'online' }).exec();
 
     // Получить список чатов
     socket.on('get-chats', async (callback) => {
       try {
-        const chats = await Chat.findAll({
-          include: [
-            {
-              model: User,
-              as: 'participants',
-              attributes: ['id', 'username', 'email', 'avatar', 'status'],
-              through: { attributes: [] },
-              where: { id: socket.userId }
-            }
-          ]
-        });
+        const chats = await Chat.find({
+          participants: socket.userId
+        }).populate('participants', 'username email avatar status')
+          .sort({ updatedAt: -1 });
 
         const chatsWithDetails = await Promise.all(chats.map(async (chat) => {
-          const allParticipants = await chat.getParticipants({
-            attributes: ['id', 'username', 'email', 'avatar', 'status']
-          });
-          
-          const lastMessage = await Message.findOne({
-            where: { chatId: chat.id },
-            order: [['createdAt', 'DESC']],
-            include: [{ model: User, as: 'sender', attributes: ['id', 'username'] }]
-          });
+          const lastMessage = await Message.findOne({ chatId: chat._id })
+            .sort({ createdAt: -1 })
+            .populate('senderId', 'username');
 
-          const otherParticipants = allParticipants.filter(p => p.id !== socket.userId);
+          const otherParticipants = chat.participants.filter(
+            p => p._id.toString() !== socket.userId
+          );
 
           return {
-            id: chat.id,
+            id: chat._id,
             name: chat.name,
             isGroup: chat.isGroup,
             avatar: chat.avatar,
@@ -71,7 +59,7 @@ module.exports = (io) => {
           };
         }));
 
-        callback({ success: true, chats: chatsWithDetails.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)) });
+        callback({ success: true, chats: chatsWithDetails });
       } catch (error) {
         console.error('Ошибка получения чатов:', error);
         callback({ success: false, error: error.message });
@@ -87,48 +75,43 @@ module.exports = (io) => {
           const chat = await Chat.create({
             name,
             isGroup: true,
-            adminId: socket.userId
+            adminId: socket.userId,
+            participants: [...participants, socket.userId]
           });
           
-          await chat.addParticipants([...participants, socket.userId]);
-          const allParticipants = await chat.getParticipants({
-            attributes: ['id', 'username', 'email', 'avatar']
-          });
+          await chat.populate('participants', 'username email avatar');
           
           callback({ 
             success: true, 
             chat: {
-              id: chat.id,
+              id: chat._id,
               name: chat.name,
               isGroup: chat.isGroup,
-              participants: allParticipants
+              participants: chat.participants
             }
           });
         } else {
           let chat = await Chat.findOne({
-            include: [{
-              model: User,
-              as: 'participants',
-              where: { id: { [Op.in]: [socket.userId, participantId] } },
-              through: { attributes: [] }
-            }],
-            where: { isGroup: false }
-          });
+            isGroup: false,
+            participants: { $all: [socket.userId, participantId] }
+          }).populate('participants', 'username email avatar');
           
           if (!chat) {
-            chat = await Chat.create({ isGroup: false });
-            await chat.addParticipants([socket.userId, participantId]);
+            chat = await Chat.create({
+              isGroup: false,
+              participants: [socket.userId, participantId]
+            });
+            await chat.populate('participants', 'username email avatar');
           }
           
-          const allParticipants = await chat.getParticipants({
-            attributes: ['id', 'username', 'email', 'avatar']
-          });
-          const otherParticipants = allParticipants.filter(p => p.id !== socket.userId);
+          const otherParticipants = chat.participants.filter(
+            p => p._id.toString() !== socket.userId
+          );
           
           callback({ 
             success: true, 
             chat: {
-              id: chat.id,
+              id: chat._id,
               isGroup: chat.isGroup,
               participants: otherParticipants
             }
@@ -145,22 +128,10 @@ module.exports = (io) => {
       try {
         const { chatId } = data;
         
-        const messages = await Message.findAll({
-          where: { chatId },
-          include: [
-            {
-              model: User,
-              as: 'sender',
-              attributes: ['id', 'username', 'avatar']
-            },
-            {
-              model: Message,
-              as: 'replyTo',
-              attributes: ['id', 'content']
-            }
-          ],
-          order: [['createdAt', 'ASC']]
-        });
+        const messages = await Message.find({ chatId })
+          .populate('senderId', 'username avatar')
+          .populate('replyToId', 'content')
+          .sort({ createdAt: 1 });
         
         callback({ success: true, messages });
       } catch (error) {
@@ -174,17 +145,13 @@ module.exports = (io) => {
       try {
         const { query } = data;
         
-        const users = await User.findAll({
-          where: {
-            [Op.or]: [
-              { username: { [Op.like]: `%${query}%` } },
-              { email: { [Op.like]: `%${query}%` } }
-            ],
-            id: { [Op.ne]: socket.userId }
-          },
-          attributes: { exclude: ['password'] },
-          limit: 20
-        });
+        const users = await User.find({
+          $or: [
+            { username: { $regex: query, $options: 'i' } },
+            { email: { $regex: query, $options: 'i' } }
+          ],
+          _id: { $ne: socket.userId }
+        }).select('-password').limit(20);
         
         callback({ success: true, users });
       } catch (error) {
@@ -198,14 +165,11 @@ module.exports = (io) => {
       try {
         const { username, bio, phone, avatar } = data;
         
-        await User.update(
+        const updatedUser = await User.findByIdAndUpdate(
+          socket.userId,
           { username, bio, phone, avatar },
-          { where: { id: socket.userId } }
-        );
-        
-        const updatedUser = await User.findByPk(socket.userId, {
-          attributes: { exclude: ['password'] }
-        });
+          { new: true }
+        ).select('-password');
         
         callback({ success: true, user: updatedUser });
       } catch (error) {
@@ -237,20 +201,10 @@ module.exports = (io) => {
           replyToId: data.replyTo
         });
         
-        const fullMessage = await Message.findByPk(message.id, {
-          include: [
-            {
-              model: User,
-              as: 'sender',
-              attributes: ['id', 'username', 'avatar']
-            }
-          ]
-        });
+        const fullMessage = await Message.findById(message._id)
+          .populate('senderId', 'username avatar');
         
-        await Chat.update(
-          { updatedAt: new Date() },
-          { where: { id: data.chatId } }
-        );
+        await Chat.findByIdAndUpdate(data.chatId, { updatedAt: new Date() });
         
         io.to(data.chatId).emit('new-message', fullMessage);
       } catch (error) {
@@ -275,10 +229,10 @@ module.exports = (io) => {
       console.log('🔌 Пользователь отключен:', socket.userId);
       users.delete(socket.userId);
       
-      await User.update(
-        { status: 'offline', lastSeen: new Date() },
-        { where: { id: socket.userId } }
-      );
+      await User.findByIdAndUpdate(socket.userId, {
+        status: 'offline',
+        lastSeen: new Date()
+      });
     });
   });
 };

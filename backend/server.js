@@ -7,7 +7,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 const fs = require('fs');
-const { syncDatabase } = require('./models');
+const { connectDB } = require('./models-mongoose');
 
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
@@ -101,10 +101,13 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 
 // Initialize database and start server
-syncDatabase().then(() => {
+connectDB().then(() => {
   server.listen(PORT, () => {
     console.log(`🚀 Сервер запущен на порту ${PORT}`);
-    console.log(`💾 База данных SQLite готова`);
+    console.log(`💾 База данных MongoDB готова`);
     console.log(`🌐 Приложение доступно на http://localhost:${PORT}`);
   });
+}).catch(err => {
+  console.error('Не удалось подключиться к MongoDB:', err);
+  process.exit(1);
 });
