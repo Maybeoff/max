@@ -26,8 +26,8 @@ services:
       JWT_EXPIRE: 30d
       NODE_ENV: production
       SMTP_HOST: smtp.mail.ru
-      SMTP_PORT: 465
-      SMTP_SECURE: true
+      SMTP_PORT: "465"
+      SMTP_SECURE: "true"
       SMTP_USER: ${SMTP_USER}
       SMTP_PASS: ${SMTP_PASS}
       SMTP_FROM: ${SMTP_FROM}
