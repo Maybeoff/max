@@ -33,7 +33,7 @@ services:
       SMTP_FROM: ${SMTP_FROM}
       RECAPTCHA_SECRET_KEY: ${RECAPTCHA_SECRET_KEY}
     volumes:
-      - /root/m/max/frontend/build:/app/build
+      - ./frontend/build:/app/build
     depends_on:
       - mongodb
 
