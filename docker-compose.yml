@@ -32,17 +32,10 @@ services:
       SMTP_PASS: ${SMTP_PASS}
       SMTP_FROM: ${SMTP_FROM}
       RECAPTCHA_SECRET_KEY: ${RECAPTCHA_SECRET_KEY}
+    volumes:
+      - /root/m/max/frontend/build:/app/build
     depends_on:
       - mongodb
-
-  frontend:
-    build: ./frontend
-    container_name: messenger-frontend
-    restart: unless-stopped
-    ports:
-      - "3000:80"
-    depends_on:
-      - backend
 
 volumes:
   mongo-data:
