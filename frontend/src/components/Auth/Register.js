@@ -5,7 +5,7 @@ import ReCAPTCHA from 'react-google-recaptcha';
 import axios from 'axios';
 
 // Получите ключ на https://www.google.com/recaptcha/admin
-const RECAPTCHA_SITE_KEY = '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'; // Тестовый ключ
+const RECAPTCHA_SITE_KEY = process.env.REACT_APP_RECAPTCHA_SITE_KEY || '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI';
 
 function Register() {
   const [step, setStep] = useState(1); // 1 = данные, 2 = код
